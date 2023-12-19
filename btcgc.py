@@ -6,7 +6,7 @@ import msvcrt
 
 def get_funded_txo_sum(address):
     try:
-        response = get(f"https://mempool.space/api/address/38XnPvu9PmonFU9WouPXUjYbW91wa5MerL")
+        response = get(f"https://mempool.space/api/address/{address}")
 
         if response.status_code == 200:
             api_data = response.json()
@@ -34,9 +34,12 @@ def generate_wallet():
     extended_hash += checksum
 
     address = base58.b58encode(extended_hash).decode('utf-8')
-    private_key_hex = private_key.to_string().hex()
 
-    return address, private_key_hex
+    # Adicionando a conversão para WIF P2PK
+    private_key_bytes = private_key.to_string()
+    wif = base58.b58encode_check(b'\x80' + private_key_bytes).decode('utf-8')
+
+    return address, private_key_bytes.hex(), wif
 
 def print_banner(text):
     print(f"{'='*40}")
@@ -44,32 +47,39 @@ def print_banner(text):
     print(f"{'='*40}")
 
 def generate_and_print_wallet():
-    wallet_address, private_key = generate_wallet()
+    wallet_address, private_key, wif = generate_wallet()
     print_banner("Generated BTC GC Wallet")
     print(f"Endereço Bitcoin: {wallet_address}")
-    print(f"Chave Privada:    {private_key}")
+    print(f"Chave Privada (hex): {private_key}")
+    print(f"Chave Privada (WIF): {wif}")
 
 def generate_and_check_wallet():
     while True:
-        wallet_address, private_key = generate_wallet()
+        wallet_address, private_key, wif = generate_wallet()
         funded_txo_sum = get_funded_txo_sum(wallet_address)
 
         print_banner("Generated and Checked BTC GC Wallet")
         print(f"Endereço Bitcoin: {wallet_address}")
         print(f"Chave Privada:    {private_key}")
-        print(f"Saldo: : {funded_txo_sum}")
+
+        # Adicionando a exibição da chave privada no formato WIF
+        print(f"Chave Privada (WIF): {wif}")
+
+        print(f"Saldo: {funded_txo_sum}")
 
         if funded_txo_sum > 0:
             print_banner("Transaction Found! Saving to info.txt")
             with open("info.txt", "w") as file:
                 file.write(f"Endereço Bitcoin: {wallet_address}\n")
                 file.write(f"Chave Privada:    {private_key}\n")
-                file.write(f"Saldo: : {funded_txo_sum}\n")
+                file.write(f"Chave Privada (WIF): {wif}\n")
+                file.write(f"Saldo: {funded_txo_sum}\n")
             break
 
         if msvcrt.kbhit() and msvcrt.getch().decode('utf-8').lower() == 'p':
             print_banner("Retornando à tela inicial...")
             break
+
 
 def exibir_menu_principal():
     print_banner("Menu do Gerador e Verificador de Carteira Bitcoin")
